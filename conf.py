@@ -21,7 +21,6 @@ project = 'Test'
 copyright = '2020, John Doe'
 author = 'John Doe'
 
-
 numfig = True
 
 # -- General configuration ---------------------------------------------------

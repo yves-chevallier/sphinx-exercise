@@ -12,12 +12,10 @@ Add directives for writing exercises and solutions. This extension supports:
 To summarize:
 
     - Exercises are automatically numbered "Exercise 1.1" (section number + exercise number)
-    - If a `.. all-exercises::`, the exercises is mentionned, the `exercise` directive
+    - If a `.. exercises::`, the exercises is mentionned, the `exercise` directive
       is replaced with a reference to the exercise
     - Solutions can be hidden with `:hidden:`
 """
-import logging
-
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from docutils.parsers.rst.directives.admonitions import BaseAdmonition, Hint
@@ -30,7 +28,7 @@ from sphinx.util.docutils import SphinxDirective
 from sphinx.environment.adapters.toctree import TocTree
 from sphinx.environment.collectors import EnvironmentCollector
 from sphinx.util import url_re, status_iterator
-
+from sphinx.util import logging
 import sphinx.locale
 
 from collections import OrderedDict
@@ -249,15 +247,19 @@ class Translator(HTML5Translator):
 
 
 def init_numfig_format(app, config):
+    # Enable numfig, required for this extension
+    if not config.numfig:
+        logger.error('Numfig config option is disabled, setting it to True')
+        config.numfig = True
+
     config.numfig_format.update({'exercise': _('Exercice %s')}) # TODO: Add translation
 
 
 def setup(app):
     no_visits = (no_visit, no_visit)
-    visitors = (visit_exercise, depart_exercise)
 
     app.add_enumerable_node(exercise, 'exercise',
-        html=visitors,
+        html=(visit_exercise, depart_exercise),
         latex=no_visits,
         man=no_visits
     )
@@ -272,7 +274,7 @@ def setup(app):
 
     app.add_directive('exercise', ExerciseDirective)
     app.add_directive('solution', SolutionDirective)
-    app.add_directive('all-exercises', AllExercisesDirective)
+    app.add_directive('exercises', AllExercisesDirective)
 
     app.connect('config-inited', init_numfig_format)
     app.connect('doctree-resolved', process_exercise_nodes)

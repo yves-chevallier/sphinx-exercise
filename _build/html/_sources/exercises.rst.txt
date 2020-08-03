@@ -6,4 +6,4 @@
 Exercices
 =========
 
-.. all-exercises::
+.. exercises::
