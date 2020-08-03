@@ -66,6 +66,7 @@ class ExerciseDirective(SphinxDirective):
         self.assert_has_content()
 
         id = 'exercise-%d' % self.env.new_serialno('sphinx.ext.exercises#exercises')
+        logger.debug(f"[exercises] New id for exercise {id}")
 
         target_node = nodes.target('', '', ids=[id])
 
@@ -246,7 +247,7 @@ class Translator(HTML5Translator):
             self.body.append('<span class="section-number">' + '.'.join(map(str, secnumber)) + '</span>')
 
 
-def init_numfig_format(app, config):
+def check_config(app, config):
     # Enable numfig, required for this extension
     if not config.numfig:
         logger.error('Numfig config option is disabled, setting it to True')
@@ -276,7 +277,7 @@ def setup(app):
     app.add_directive('solution', SolutionDirective)
     app.add_directive('exercises', AllExercisesDirective)
 
-    app.connect('config-inited', init_numfig_format)
+    app.connect('config-inited', check_config)
     app.connect('doctree-resolved', process_exercise_nodes)
 
     app.add_env_collector(ExercisesCollector)

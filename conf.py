@@ -23,6 +23,10 @@ author = 'John Doe'
 
 numfig = True
 
+# Debug
+keep_warnings = True
+nitpicky = True
+
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
