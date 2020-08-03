@@ -10,6 +10,7 @@ Test
 
     foo.rst
     bar.rst
+    buz.rst
 
 .. toctree::
     :numbered:
@@ -19,3 +20,11 @@ Test
 
     baz.rst
 
+.. raw:: latex
+
+    \backmatter
+
+Solutions des exercices
+=======================
+
+.. solutions::

@@ -16,22 +16,20 @@ To summarize:
       is replaced with a reference to the exercise
     - Solutions can be hidden with `:hidden:`
 """
+from collections import OrderedDict
+
+import sphinx.locale
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from docutils.parsers.rst.directives.admonitions import BaseAdmonition, Hint
-
-from sphinx.writers.html5 import HTML5Translator
-from sphinx.util.console import colorize
-from sphinx.locale import _
 from sphinx import addnodes
-from sphinx.util.docutils import SphinxDirective
 from sphinx.environment.adapters.toctree import TocTree
 from sphinx.environment.collectors import EnvironmentCollector
-from sphinx.util import url_re, status_iterator
-from sphinx.util import logging
-import sphinx.locale
-
-from collections import OrderedDict
+from sphinx.locale import _
+from sphinx.util import logging, status_iterator, url_re
+from sphinx.util.console import colorize
+from sphinx.util.docutils import SphinxDirective
+from sphinx.transforms import SphinxTransform
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +45,9 @@ class solution(nodes.Admonition, nodes.Element):
 class all_exercises(nodes.General, nodes.Element):
     pass
 
+class all_solutions(nodes.General, nodes.Element):
+    pass
+
 
 class AllExercisesDirective(SphinxDirective):
     """ Directive replaced with all exercises found in all documents:
@@ -55,6 +56,14 @@ class AllExercisesDirective(SphinxDirective):
     def run(self):
         self.env.exercises_all_exercises_docname = self.env.docname
         return [all_exercises()] # Let it process later once the toctree is built
+
+class AllSolutionsDirective(SphinxDirective):
+    """ Directive replaced with all exercises found in all documents:
+        Section number, subsection, exercises...
+    """
+    def run(self):
+        self.env.exercises_all_exercises_docname = self.env.docname
+        return [all_solutions()] # Let it process later once the toctree is built
 
 
 class ExerciseDirective(SphinxDirective):
@@ -70,12 +79,9 @@ class ExerciseDirective(SphinxDirective):
 
         target_node = nodes.target('', '', ids=[id])
 
-        node = exercise('\n'.join(self.content), **self.options)
-        node += nodes.title(_('Exercice'), _('Exercice'))
+        node = exercise(self.content, **self.options)
+        node += nodes.title() # Populated lated
         self.state.nested_parse(self.content, self.content_offset, node)
-
-        if not hasattr(self.env, 'exercises_all_exercises'):
-            self.env.exercises_all_exercises = OrderedDict()
 
         self.env.exercises_all_exercises[(self.env.docname, id)] = {
             'lineno': self.lineno,
@@ -96,20 +102,27 @@ class SolutionDirective(BaseAdmonition):
 
         return super().run()
 
-def visit_exercise(self, node, name=''):
+def visit_html_exercise(self, node, name=''):
     self.body.append(self.starttag(node, 'div', CLASS=('exercise ' + name)))
     if hasattr(node, 'exnum'): self.body.append('secnum: %s' % str(node.exnum))
 
 
-def depart_exercise(self, node=None):
+def depart_html_exercise(self, node=None):
     self.body.append('</div>\n')
 
 
-def visit_solution(self, node, name=''):
+def visit_html_solution(self, node, name=''):
     self.visit_admonition(node, name='solution')
 
 
-def depart_solution(self, node=None):
+def depart_html_solution(self, node=None):
+    self.depart_admonition(node)
+
+def visit_latex_solution(self, node, name=''):
+    self.visit_admonition(node, name='solution')
+
+
+def depart_latex_solution(self, node=None):
     self.depart_admonition(node)
 
 
@@ -122,11 +135,13 @@ def get_reference(meta):
 
 
 def process_exercise_nodes(app, doctree, fromdocname):
-
-    if not hasattr(app.env, 'exercises_all_exercises'):
-        app.env.exercises_all_exercises = {}
-
+    """ Once the doctree is resolved, the exercices are injected where
+    they need to.
+    """
     for node in doctree.traverse(exercise):
+        """
+        Replace each exercises with a link
+        """
         para = nodes.paragraph()
 
         if (fromdocname, node['ids'][1]) not in app.env.exercises_all_exercises:
@@ -147,7 +162,7 @@ def process_exercise_nodes(app, doctree, fromdocname):
         para += ref
         para += nodes.Text(': ' + meta['title'], ': ' + meta['title'])
 
-        node.parent.replace(node, para)
+        #node.parent.replace(node, para)
 
     for node in doctree.traverse(all_exercises):
         content = []
@@ -182,8 +197,44 @@ def process_exercise_nodes(app, doctree, fromdocname):
 
         node.replace_self(content)
 
+    # Build list of solutions
+    chapters = OrderedDict()
+    for _, ex in sorted(app.env.exercises_all_exercises.items(), key=lambda x: x[1]['number']):
+        if ex['solution']:
+            chapter = ex['number'][0]
+            if chapter not in chapters:
+                chapters[chapter] = []
+            chapters[chapter].append(ex)
+
+    for node in doctree.traverse(all_solutions):
+        content = []
+        for num, chapter in sorted(chapters.items(), key=lambda x: x[0]):
+            id = 'solution-title-%d' % app.env.new_serialno('sphinx.ext.exercises#solutions')
+            section = nodes.section(ids=[id], auto=0)
+            name = f'Exercices du chapitre {num}'
+            section.append(nodes.title(text=name))
+            content.append(section)
+
+            for ex in chapter:
+                description = ex['label']
+                para = nodes.paragraph()
+                innernode = nodes.strong(description, description)
+                para.append(innernode)
+                content.append(para)
+                content.extend(ex['solution'].children)
+        node.replace_self(content)
+
+
+    for node in doctree.traverse(exercise):
+        # Remove solution from question
+        node.children = list(filter(lambda x: not isinstance(x, solution), node.children))
 
 class ExercisesCollector(EnvironmentCollector):
+    """ Add information to the exercises pool:
+      - Number of exercise (chapter is number[0])
+      - Label to display
+      - Node with content
+    """
     def clear_doc(self, app, env, docname):
         pass
 
@@ -191,9 +242,6 @@ class ExercisesCollector(EnvironmentCollector):
         pass
 
     def get_updated_docs(self, app, env):
-        if not hasattr(env, 'all_exercises'):
-            env.all_exercises = []
-
         def traverse_all(app, env, docname):
             doctree = env.get_doctree(docname)
 
@@ -212,40 +260,12 @@ class ExercisesCollector(EnvironmentCollector):
         meta = env.exercises_all_exercises[(docname, node['ids'][1])]
         meta['number'] = env.toc_fignumbers.get(docname, {}).get('exercise', {}).get(node['ids'][0])
         meta['label'] = app.config.numfig_format['exercise'] % '.'.join(map(str, meta['number']))
+        sol = node.traverse(solution)
+        meta['solution'] = None
+        if len(sol) == 1:
+            meta['solution'] = sol[0]
 
         env.all_exercises.append(meta)
-
-
-class Translator(HTML5Translator):
-    def depart_caption(self, node):
-        self.body.append('</span>')
-        if (isinstance(node.parent, exercise)):
-            self.add_permalink_ref(node.parent, _('Lien permanent vers cet exercice'))
-        super().depart_caption(node)
-
-    def get_secnumber(self, node):
-        # type: (nodes.Element) -> None
-        if node.get('secnumber'):
-            return node['secnumber']
-        elif isinstance(node.parent, nodes.section):
-            if self.builder.name == 'singlehtml':
-                docname = self.docnames[-1]
-                anchorname = "%s/#%s" % (docname, node.parent['ids'][0])
-                if anchorname not in self.builder.secnumbers:
-                    anchorname = "%s/" % docname  # try first heading which has no anchor
-            else:
-                anchorname = '#' + node.parent['ids'][0]
-                if anchorname not in self.builder.secnumbers:
-                    anchorname = ''  # try first heading which has no anchor
-            if self.builder.secnumbers.get(anchorname):
-                return self.builder.secnumbers[anchorname]
-        return None
-
-    def add_secnumber(self, node):
-        secnumber = self.get_secnumber(node)
-        if secnumber:
-            self.body.append('<span class="section-number">' + '.'.join(map(str, secnumber)) + '</span>')
-
 
 def check_config(app, config):
     # Enable numfig, required for this extension
@@ -255,19 +275,34 @@ def check_config(app, config):
 
     config.numfig_format.update({'exercise': _('Exercice %s')}) # TODO: Add translation
 
+def env_before_read_docs(app, env, docnames):
+    if not hasattr(env, 'all_exercises'):
+        env.all_exercises = []
+    if not hasattr(env, 'exercises_all_exercises'):
+        env.exercises_all_exercises = OrderedDict()
+
+class PostTransform(SphinxTransform):
+    """
+    update source and rawsource attributes
+    """
+    default_priority = 900
+
+    def apply(self, **kwargs):
+        for node in self.document.traverse(solution):
+            pass
 
 def setup(app):
     no_visits = (no_visit, no_visit)
 
     app.add_enumerable_node(exercise, 'exercise',
-        html=(visit_exercise, depart_exercise),
+        html=(visit_html_exercise, depart_html_exercise),
         latex=no_visits,
         man=no_visits
     )
 
     app.add_node(solution,
-        html=(visit_solution, depart_solution),
-        latex=no_visits,
+        html=(visit_html_solution, depart_html_solution),
+        latex=(visit_latex_solution, depart_latex_solution),
         man=no_visits
     )
 
@@ -276,13 +311,14 @@ def setup(app):
     app.add_directive('exercise', ExerciseDirective)
     app.add_directive('solution', SolutionDirective)
     app.add_directive('exercises', AllExercisesDirective)
+    app.add_directive('solutions', AllSolutionsDirective)
 
     app.connect('config-inited', check_config)
+    app.connect('env-before-read-docs', env_before_read_docs)
     app.connect('doctree-resolved', process_exercise_nodes)
 
+    app.add_transform(PostTransform)
     app.add_env_collector(ExercisesCollector)
-
-    app.set_translator('html', Translator)
 
     return {
         'version': '0.1',
