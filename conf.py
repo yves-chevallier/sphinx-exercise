@@ -67,7 +67,7 @@ latex_elements = {
 
 \usepackage{fontspec}
 \setmonofont{DejaVu Sans Mono}
-
+\usepackage{listings}
 \usepackage{colortbl}
 \usepackage{etoolbox}
 \usepackage{xcolor,graphicx}

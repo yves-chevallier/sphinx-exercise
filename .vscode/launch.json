@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "module": "sphinx.cmd.build",
-            "args": ["-E", ".", "_build", "-vv", "-T"],
+            "args": ["-E", ".", "_build", "-vv", "-T", "-b", "latex"],
             "justMyCode": false
         }
     ]
