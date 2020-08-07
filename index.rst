@@ -17,3 +17,7 @@ Solutions of exercises
 ======================
 
 .. exercises_solutions::
+
+.. raw:: latex
+
+    \listofexercise

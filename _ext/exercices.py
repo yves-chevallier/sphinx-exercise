@@ -79,6 +79,9 @@ class ExerciseDirective(SphinxDirective):
         # This title will be modified later.
         exercise_node += exercise_title(_('Exercise'), _('Exercise'))
 
+        # par = nodes.paragraph()
+        # exercise_node += par
+
         # Allow for parsing content as ReST
         self.state.nested_parse(self.content, self.content_offset, exercise_node)
 
@@ -131,6 +134,9 @@ class ExercisesCollector(EnvironmentCollector):
     def process_doc(self, app, doctree):
         pass
 
+    def merge_other(self, app, env, docnames, other):
+        pass
+
     def get_updated_docs(self, app, env):
         """ When a document is updated, the toctree is traversed to
         find new exercises.
@@ -156,7 +162,8 @@ class ExercisesCollector(EnvironmentCollector):
         # For some reason attributes cannot be set on the node itself
         solution_nodes = node.traverse(solution)
         number = env.toc_fignumbers.get(docname, {}).get('exercise', {}).get(ids[0])
-        env.exercises_exercises_map[(docname, ids[1])].update({
+        node_id = (docname, ids[0])
+        env.exercises_exercises_map[node_id].update({
             'number': number,
             'label': app.config.numfig_format['exercise'] % '.'.join(map(str, number)),
             'solution': solution_nodes[0] if len(solution_nodes) == 1 else None
@@ -171,7 +178,15 @@ def process_exercise_nodes(app, doctree, fromdocname):
     """ Once the doctree is resolved, the exercises are injected where
     they need to.
     """
-    del fromdocname
+
+    # Copy saved arguments to nodes, restore node pointers
+    for node in doctree.traverse(exercise):
+        node_id = (node['docname'], node['ids'][0])
+        meta = app.env.exercises_exercises_map[node_id]
+        node['label'] = meta['label']
+        node['number'] = meta['number']
+        node['title'] = meta['title']
+        meta['node'] = node
 
     # Sort exercises in ascending order
     all_exercises = app.env.exercises_all_exercises
@@ -185,12 +200,13 @@ def process_exercise_nodes(app, doctree, fromdocname):
             hierarchy[chapter] = []
         hierarchy[chapter].append(ex)
 
-    # Copy saved arguments to nodes
-    for node in doctree.traverse(exercise):
-        pass
     # Update exercise titles
     for node in doctree.traverse(exercise):
-        node.children[0].rawsource = "Foobarbar"
+        label = node['label']
+        if node['title']:
+            label += ' ' + node['title']
+        node.children[0].replace_self(
+            exercise_title(label, label))
 
     # Populate the solutions directive
     for node in doctree.traverse(solutions):
@@ -211,9 +227,9 @@ def process_exercise_nodes(app, doctree, fromdocname):
 
         node.replace_self(content)
 
-        # Remove solution from the exercises
-        for ex in doctree.traverse(exercise):
-            ex.children = list(filter(lambda x: not isinstance(x, solution), ex.children))
+    # Remove solution from the exercises
+    for ex in doctree.traverse(exercise):
+        ex.children = list(filter(lambda x: not isinstance(x, solution), ex.children))
 
 
 def check_config(app, config):
@@ -240,10 +256,16 @@ def visit_html_exercise(self, node, name=''):
     if hasattr(node, 'exnum'):
         self.body.append('secnum: %s' % str(node.exnum))
 
-
 def depart_html_exercise(self, node=None):
     self.body.append('</div>\n')
 
+def visit_latex_exercise(self, node, name=''):
+    self.body.append('\n\\begin{exercise}')
+    if node['title']:
+        self.body.append('[' + node['title'] + ']')
+
+def depart_latex_exercise(self, node=None):
+    self.body.append('\\end{exercise}\n')
 
 def visit_html_solution(self, node, name=''):
     self.visit_admonition(node, name='solution')
@@ -254,7 +276,7 @@ def depart_html_solution(self, node=None):
 
 
 def visit_latex_solution(self, node, name=''):
-    self.visit_admonition(node, name='solution')
+    self.visit_admonition(node)
 
 
 def depart_latex_solution(self, node=None):
@@ -272,13 +294,19 @@ def visit_exercise_title(self, node):
 def depart_exercise_title(self, node):
     self.depart_strong(node)
 
+def visit_latex_exercise_title(self, node):
+    if isinstance(node.parent, exercise):
+        raise nodes.SkipNode
+
+def depart_latex_exercise_title(self, node):
+    pass
 
 def setup(app):
     no_visits = (no_visit, no_visit)
 
     app.add_enumerable_node(exercise, 'exercise',
                             html=(visit_html_exercise, depart_html_exercise),
-                            latex=no_visits,
+                            latex=(visit_latex_exercise, depart_latex_exercise),
                             man=no_visits)
 
     app.add_node(solution,
@@ -288,7 +316,7 @@ def setup(app):
 
     app.add_node(exercise_title,
                  html=(visit_exercise_title, depart_exercise_title),
-                 latex=(visit_exercise_title, depart_exercise_title))
+                 latex=(visit_latex_exercise_title, depart_latex_exercise_title))
 
     sphinx.locale.admonitionlabels['solution'] = _('Solution')
 
