@@ -5,11 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Module",
+            "name": "HTML",
             "type": "python",
             "request": "launch",
             "module": "sphinx.cmd.build",
-            "args": ["-E", ".", "_build", "-vv", "-T", "-b", "latex"],
+            "args": [".", "_build", "-vv", "-T", "-b", "html"],
+            "justMyCode": false
+        },
+        {
+            "name": "LaTeX",
+            "type": "python",
+            "request": "launch",
+            "module": "sphinx.cmd.build",
+            "args": [".", "_build", "-vv", "-T", "-b", "latex"],
             "justMyCode": false
         }
     ]

@@ -1,0 +1,18 @@
+\usepackage{fontspec}
+\setmonofont{DejaVu Sans Mono}
+\usepackage{listings}
+\usepackage{colortbl}
+\usepackage{etoolbox}
+\usepackage{xcolor,graphicx}
+\usepackage[xparse,skins,breakable]{tcolorbox}
+
+\newtcolorbox{hint}{breakable,enhanced,arc=0mm,colback=lightgray!5,colframe=lightgray,leftrule=11mm,%
+height from=1.3cm to 16cm,%
+overlay={\node[anchor=north west,outer sep=1mm] at (frame.north west) {
+    \includegraphics[width=2em]{../../icons/hint.pdf}}; }}
+
+\newtcolorbox{code}{breakable,enhanced,arc=0mm,colback=lightgray!5,colframe=lightgray}
+
+\renewenvironment{sphinxnote}[1]
+    {\begin{hint}{#1}}
+    {\end{hint}}

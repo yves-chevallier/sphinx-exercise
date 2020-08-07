@@ -17,43 +17,29 @@ To summarize:
     - Solutions can be hidden with `:hidden:`
 """
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Tuple, Union
-from docutils.frontend import OptionParser
+
 import sphinx.locale
 from docutils import nodes
-from docutils.parsers.rst import Directive
-from docutils.parsers.rst.directives.admonitions import BaseAdmonition, Hint
+from docutils.parsers.rst.directives.admonitions import BaseAdmonition
 from sphinx import addnodes
-from sphinx.environment.adapters.toctree import TocTree
+from sphinx.directives import SphinxDirective
 from sphinx.environment.collectors import EnvironmentCollector
 from sphinx.locale import _
-from sphinx.util import logging, status_iterator, url_re
-from sphinx.util.console import colorize
-from sphinx.util.docutils import SphinxDirective
-from sphinx.transforms import SphinxTransform
-from sphinx.builders.latex import LaTeXBuilder
-from sphinx.writers.latex import LaTeXWriter, LaTeXTranslator
-from sphinx.util.docutils import SphinxFileOutput, new_document
-from os import path
-from sphinx.locale import _, __
-from sphinx.util import texescape, logging, progress_message, status_iterator
+from sphinx.util import logging
 
 logger = logging.getLogger(__name__)
 
 
 class exercise_title(nodes.strong, nodes.Element):
     """ Title of exercises and solutions """
-    pass
 
 
 class exercise(nodes.Admonition, nodes.Element):
     """ An exercise """
-    pass
 
 
 class solution(nodes.Admonition, nodes.Element):
-    """ A solution to an exercice """
-    pass
+    """ A solution to an exercise """
 
 
 class solutions(nodes.General, nodes.Element):
@@ -63,7 +49,6 @@ class solutions(nodes.General, nodes.Element):
 
 class table_of_exercises(nodes.General, nodes.Element):
     """ List of all exercises """
-    pass
 
 
 class SolutionsDirective(SphinxDirective):
@@ -92,7 +77,7 @@ class ExerciseDirective(SphinxDirective):
 
         # Exercise number not known before the toctree is resolved.
         # This title will be modified later.
-        exercise_node += nodes.title(_('Exercise'), _('Exercise'))
+        exercise_node += exercise_title(_('Exercise'), _('Exercise'))
 
         # Allow for parsing content as ReST
         self.state.nested_parse(self.content, self.content_offset, exercise_node)
@@ -100,12 +85,12 @@ class ExerciseDirective(SphinxDirective):
         # Populate exercise pool
         exercise_node['lineno'] = self.lineno
         exercise_node['docname'] = self.env.docname
-        exercise_node['title'] = self.arguments[0] if len(self.arguments) else ''
+        exercise_node['title'] = self.arguments[0] if self.arguments else ''
         data = {
             'lineno': self.lineno,
             'docname': self.env.docname,
             'node': exercise_node,
-            'title': self.arguments[0] if len(self.arguments) else '',
+            'title': self.arguments[0] if self.arguments else '',
             'target': target_node,
         }
         self.env.exercises_all_exercises.append(data)
@@ -118,7 +103,7 @@ class SolutionDirective(BaseAdmonition):
     node_class = solution
 
     def run(self):
-        if not len(self.arguments):
+        if not self.arguments:
             self.arguments.append(_('Solution'))
 
         return super().run()
@@ -126,6 +111,7 @@ class SolutionDirective(BaseAdmonition):
 
 def env_before_read_docs(app, env, docnames):
     """ Creates the meta data containers. """
+    del app, docnames # Unused
     if not hasattr(env, 'exercises_all_exercises'):
         env.exercises_all_exercises = []
     if not hasattr(env, 'exercises_exercises_map'):
@@ -182,9 +168,10 @@ def get_reference(meta):
 
 
 def process_exercise_nodes(app, doctree, fromdocname):
-    """ Once the doctree is resolved, the exercices are injected where
+    """ Once the doctree is resolved, the exercises are injected where
     they need to.
     """
+    del fromdocname
 
     # Sort exercises in ascending order
     all_exercises = app.env.exercises_all_exercises
@@ -198,13 +185,20 @@ def process_exercise_nodes(app, doctree, fromdocname):
             hierarchy[chapter] = []
         hierarchy[chapter].append(ex)
 
+    # Copy saved arguments to nodes
+    for node in doctree.traverse(exercise):
+        pass
+    # Update exercise titles
+    for node in doctree.traverse(exercise):
+        node.children[0].rawsource = "Foobarbar"
+
     # Populate the solutions directive
     for node in doctree.traverse(solutions):
         content = []
         for chapter, exs in hierarchy.items():
             # Create a section per chapter
             section = nodes.section(ids=[f'solution-chapter-{chapter}'], auto=0)
-            name = _('Solutions du chapitre') + ' ' + str(chapter)
+            name = _('Chapter Solutions') + ' ' + str(chapter)
             section.append(nodes.title(name, name))
             content.append(section)
             # Insert the solutions
@@ -218,20 +212,22 @@ def process_exercise_nodes(app, doctree, fromdocname):
         node.replace_self(content)
 
         # Remove solution from the exercises
-        for node in doctree.traverse(exercise):
-            node.children = list(filter(lambda x: not isinstance(x, solution), node.children))
+        for ex in doctree.traverse(exercise):
+            ex.children = list(filter(lambda x: not isinstance(x, solution), ex.children))
 
 
 def check_config(app, config):
     # Enable numfig, required for this extension
+    del app
     if not config.numfig:
         logger.error('Numfig config option is disabled, setting it to True')
         config.numfig = True
 
-    config.numfig_format.update({'exercise': _('Exercice %s')}) # TODO: Add translation
+    config.numfig_format.update({'exercise': _('Exercise %s')})
 
 
 def purge(app, env, docname):
+    del app
     if not hasattr(env, 'exercises_all_exercises'):
         return
     env.exercises_all_exercises = [
@@ -241,7 +237,8 @@ def purge(app, env, docname):
 
 def visit_html_exercise(self, node, name=''):
     self.body.append(self.starttag(node, 'div', CLASS=('exercise ' + name)))
-    if hasattr(node, 'exnum'): self.body.append('secnum: %s' % str(node.exnum))
+    if hasattr(node, 'exnum'):
+        self.body.append('secnum: %s' % str(node.exnum))
 
 
 def depart_html_exercise(self, node=None):
@@ -265,30 +262,39 @@ def depart_latex_solution(self, node=None):
 
 
 def no_visit(self, node=None):
-    pass
+    del node # unused
+
+
+def visit_exercise_title(self, node):
+    self.visit_strong(node)
+
+
+def depart_exercise_title(self, node):
+    self.depart_strong(node)
 
 
 def setup(app):
     no_visits = (no_visit, no_visit)
 
     app.add_enumerable_node(exercise, 'exercise',
-        html=(visit_html_exercise, depart_html_exercise),
-        latex=no_visits,
-        man=no_visits
-    )
+                            html=(visit_html_exercise, depart_html_exercise),
+                            latex=no_visits,
+                            man=no_visits)
 
     app.add_node(solution,
-        html=(visit_html_solution, depart_html_solution),
-        latex=(visit_latex_solution, depart_latex_solution),
-        man=no_visits
-    )
+                 html=(visit_html_solution, depart_html_solution),
+                 latex=(visit_latex_solution, depart_latex_solution),
+                 man=no_visits)
 
+    app.add_node(exercise_title,
+                 html=(visit_exercise_title, depart_exercise_title),
+                 latex=(visit_exercise_title, depart_exercise_title))
 
     sphinx.locale.admonitionlabels['solution'] = _('Solution')
 
     app.add_directive('exercise', ExerciseDirective)
     app.add_directive('solution', SolutionDirective)
-    app.add_directive('solutions', SolutionsDirective)
+    app.add_directive('exercises_solutions', SolutionsDirective)
 
     app.connect('config-inited', check_config)
     app.connect('env-before-read-docs', env_before_read_docs)

@@ -1,0 +1,9 @@
+version: "3"
+
+services:
+  latex:
+    build: .
+    container_name: latexmk
+    volumes:
+      - .:/home/latex
+    working_dir: /home/latex

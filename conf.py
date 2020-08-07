@@ -52,37 +52,23 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 #
 html_theme = 'alabaster'
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
-
 latex_engine = "xelatex"
 latex_use_xindy = False
 pygments_style = "colorful"
 latex_elements = {
     'inputenc': '',
     'utf8extra': '',
-    'preamble': r'''
-
-\usepackage{fontspec}
-\setmonofont{DejaVu Sans Mono}
-\usepackage{listings}
-\usepackage{colortbl}
-\usepackage{etoolbox}
-\usepackage{xcolor,graphicx}
-\usepackage[xparse,skins,breakable]{tcolorbox}
-
-\newtcolorbox{hint}{breakable,enhanced,arc=0mm,colback=lightgray!5,colframe=lightgray,leftrule=11mm,%
-height from=1.3cm to 16cm,%
-overlay={\node[anchor=north west,outer sep=1mm] at (frame.north west) {
-    \includegraphics[width=2em]{../../icons/hint.pdf}}; }}
-
-\newtcolorbox{code}{breakable,enhanced,arc=0mm,colback=lightgray!5,colframe=lightgray}
-
-\renewenvironment{sphinxnote}[1]
-    {\begin{hint}{#1}}
-    {\end{hint}}
-''',
+    'fontpkg': '',
+    'fncychap': '',
+    'printindex': '',
+    'maketitle': '',
+    'preamble': open('_templates/preamble.tex').read(),
 }
 
+latex_docclass = {
+    'manual': 'book'
+}
+
+latex_documents = [
+    ('index', 'main.tex', None , author, 'manual')
+]

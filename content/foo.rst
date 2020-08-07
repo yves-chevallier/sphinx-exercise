@@ -1,14 +1,12 @@
-======
-Foobar
-======
-
+===
 Foo
 ===
 
-Un petit exercice les amis ?
+Foobar
+======
 
-Bar
----
+Foobaz
+------
 
 .. exercise:: Without solution
 

@@ -1,30 +1,19 @@
 Test
 ====
 
-
 .. toctree::
     :numbered:
     :maxdepth: 2
-    :caption: TocA
+    :caption: Content
     :glob:
 
-    foo.rst
-    bar.rst
-    buz.rst
-
-.. toctree::
-    :numbered:
-    :maxdepth: 2
-    :caption: TocB
-    :glob:
-
-    baz.rst
+    content/*
 
 .. raw:: latex
 
     \backmatter
 
-Solutions des exercices
-=======================
+Solutions of exercises
+======================
 
-.. solutions::
+.. exercises_solutions::
