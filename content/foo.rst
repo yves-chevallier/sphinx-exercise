@@ -23,7 +23,7 @@ Foobaz
 
             k = 12;
 
-.. exercise:: With solution
+.. exercise:: a_duck
 
     What is the difference between a duck?
 

@@ -25,7 +25,7 @@ from sphinx import addnodes
 from sphinx.directives import SphinxDirective
 from sphinx.environment.collectors import EnvironmentCollector
 from sphinx.locale import _
-from sphinx.util import logging
+from sphinx.util import logging, texescape
 from sphinx.util.template import LaTeXRenderer
 
 logger = logging.getLogger(__name__)
@@ -247,12 +247,15 @@ def process_exercise_nodes(app, doctree, fromdocname):
                 description = ex['label']
 
                 para = nodes.paragraph()
-                ref = nodes.reference('', '')
-                ref['refdocname'] = ex['docname']
-                ref['refuri'] = app.builder.get_relative_uri(fromdocname, ex['docname'])
-                ref['refuri'] += '#' + ex['target']['refid']
-                ref.append(exercise_title(description, description))
-                para.append(ref)
+                title = exercise_title(description, description)
+                if app.builder.format in ['latex', 'html']:
+                    ref = nodes.reference('', '')
+                    ref['refdocname'] = ex['docname']
+                    ref['refuri'] = app.builder.get_relative_uri(fromdocname, ex['docname'])
+                    ref['refuri'] += '#' + ex['target']['refid']
+                    ref.append(title)
+                    title = ref
+                para.append(title)
                 content.append(para)
                 content.extend(ex['solution'].children)
 
@@ -305,8 +308,9 @@ def depart_html_exercise(self, node=None):
 
 def visit_latex_exercise(self, node, name=''):
     self.body.append('\n\\begin{exercise}')
+    title = texescape.escape(node['title'])
     if node['title']:
-        self.body.append('[' + node['title'] + ']')
+        self.body.append('[' + title + ']')
 
 def depart_latex_exercise(self, node=None):
     self.body.append('\\end{exercise}\n')
@@ -367,7 +371,8 @@ def setup(app):
 
     app.add_node(exercise_title,
                  html=(visit_exercise_title, depart_exercise_title),
-                 latex=(visit_latex_exercise_title, depart_latex_exercise_title))
+                 latex=(visit_latex_exercise_title, depart_latex_exercise_title),
+                 man=no_visits)
 
     sphinx.locale.admonitionlabels['solution'] = _('Solution')
 
