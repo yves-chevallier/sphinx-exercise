@@ -61,8 +61,7 @@ latex_elements = {
     'fontpkg': '',
     'fncychap': '',
     'printindex': '',
-    'maketitle': '',
-    'preamble': open('_templates/preamble.tex').read(),
+    'maketitle': ''
 }
 
 latex_docclass = {
