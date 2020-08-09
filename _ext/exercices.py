@@ -245,8 +245,14 @@ def process_exercise_nodes(app, doctree, fromdocname):
             # Insert the solutions
             for ex in [e for e in exs if e['solution']]:
                 description = ex['label']
+
                 para = nodes.paragraph()
-                para.append(exercise_title(description, description))
+                ref = nodes.reference('', '')
+                ref['refdocname'] = ex['docname']
+                ref['refuri'] = app.builder.get_relative_uri(fromdocname, ex['docname'])
+                ref['refuri'] += '#' + ex['target']['refid']
+                ref.append(exercise_title(description, description))
+                para.append(ref)
                 content.append(para)
                 content.extend(ex['solution'].children)
 
