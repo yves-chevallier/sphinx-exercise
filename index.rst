@@ -9,14 +9,40 @@ Test
 
     content/*
 
+
+.. hlist::
+   :columns: 3
+
+   * A list of
+   * short items
+   * that should be
+   * displayed
+   * horizontally
+   * A list of
+   * short items
+   * that should be
+   * displayed
+   * horizontally
+   * A list of
+   * short items
+   * that should be
+   * displayed
+   * horizontally
+   * A list of
+   * short items
+   * that should be
+   * displayed
+   * horizontally
+
 .. raw:: latex
 
     \backmatter
 
-Solutions of exercises
-======================
 
-.. exercises_solutions::
+Solution des exercices
+----------------------
+
+    .. exercises_solutions::
 
 .. raw:: latex
 

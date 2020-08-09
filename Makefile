@@ -3,7 +3,7 @@ SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = _build
 
-DOCKER = docker-compose run latex
+#DOCKER = docker-compose run latex
 
 all: html latex
 

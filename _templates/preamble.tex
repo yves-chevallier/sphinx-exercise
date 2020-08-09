@@ -16,27 +16,3 @@ overlay={\node[anchor=north west,outer sep=1mm] at (frame.north west) {
 \renewenvironment{sphinxnote}[1]
     {\begin{hint}{#1}}
     {\end{hint}}
-
-\usepackage{tocloft}
-\usepackage{xparse}
-
-\newcommand{\listofexercises}{List of exercises}
-\newlistof{exercise}{exp}{\listofexercises}
-
-% Restart counter at each new chapter
-\makeatletter
-\@addtoreset{exercise}{chapter}
-\makeatother
-
-% Exercise environment
-\newenvironment{exercise}[1][]{%
-    \vspace{2em}
-    \refstepcounter{exercise}
-    \par\noindent\textbf{Exercice \thechapter.\theexercise}\ifx&#1&\else\ -- #1\fi
-    \newline
-    \addcontentsline{exp}{exercise}{%
-        Exercice \thechapter.\theexercise
-        \ifx&#1&\else\ -- #1\fi
-    }\\
-    \noindent
-}{\vspace{2em}}

@@ -26,9 +26,34 @@ from sphinx.directives import SphinxDirective
 from sphinx.environment.collectors import EnvironmentCollector
 from sphinx.locale import _
 from sphinx.util import logging
+from sphinx.util.template import LaTeXRenderer
 
 logger = logging.getLogger(__name__)
 
+latex_preamble = r"""
+%% Support for exercises
+%
+\newcommand{\listofexercises}{<%= listofexercises %>}
+\newlistof{exercise}{exp}{\listofexercises}
+
+%% Restart counter at each new chapter
+\makeatletter
+\@addtoreset{exercise}{chapter}
+\makeatother
+
+%% Exercise environment
+\newenvironment{exercise}[1][]{%
+    \vspace{2em}
+    \refstepcounter{exercise}
+    \par\noindent\textbf{<%= exercise %> \thechapter.\theexercise}\ifx&#1&\else\ -- #1\fi
+    \newline
+    \addcontentsline{exp}{exercise}{%
+        <%= exercise %> \thechapter.\theexercise
+        \ifx&#1&\else\ -- #1\fi
+    }\\
+    \noindent
+}{\vspace{2em}}
+"""
 
 class exercise_title(nodes.strong, nodes.Element):
     """ Title of exercises and solutions """
@@ -231,10 +256,23 @@ def process_exercise_nodes(app, doctree, fromdocname):
     for ex in doctree.traverse(exercise):
         ex.children = list(filter(lambda x: not isinstance(x, solution), ex.children))
 
+    # Inject LaTeX header
+    if all_exercises and hasattr(app.builder, 'context'):
+        inject_latex_header(app, app.builder.context)
+
+
+def inject_latex_header(app, context):
+    context['preamble'] += '\n' + r"%% BEGIN injection for extension exercises"
+    render = LaTeXRenderer()
+    context['preamble'] += render.render_string(latex_preamble, {
+        'exercise': _('Exercise'),
+        'listofexercises': _('List of Exercises')
+    })
+    context['preamble'] += '\n' + r"%% END injection for extension exercises"
+
 
 def check_config(app, config):
     # Enable numfig, required for this extension
-    del app
     if not config.numfig:
         logger.error('Numfig config option is disabled, setting it to True')
         config.numfig = True
@@ -294,12 +332,19 @@ def visit_exercise_title(self, node):
 def depart_exercise_title(self, node):
     self.depart_strong(node)
 
+
 def visit_latex_exercise_title(self, node):
     if isinstance(node.parent, exercise):
         raise nodes.SkipNode
+    else:
+        self.visit_strong(node)
+
 
 def depart_latex_exercise_title(self, node):
-    pass
+    if isinstance(node.parent, exercise):
+        raise nodes.SkipNode
+    else:
+        self.depart_strong(node)
 
 def setup(app):
     no_visits = (no_visit, no_visit)
@@ -330,6 +375,9 @@ def setup(app):
     app.connect('env-purge-doc', purge)
 
     app.add_env_collector(ExercisesCollector)
+
+    app.add_latex_package('tocloft')
+    app.add_latex_package('xparse')
 
     return {
         'version': '0.1',
